@@ -1,0 +1,13 @@
+# MATLAB / Simulink
+*.asv
+*.slx
+*.mdl
+slprj/
+*.slxc
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Local reference clone (development only)
+_ref-rlc/
