@@ -37,7 +37,7 @@ if isempty(scriptFile)
     for k = 1:10
         candidates = {
             fullfile(here, 'plotcircuit_DCMotor.m')
-            fullfile(here, 'circuit-plots', 'plotcircuit_DCMotor.m')
+            fullfile(here, 'lecture-diagrams', 'plotcircuit_DCMotor.m')
         };
         for c = 1:numel(candidates)
             if exist(candidates{c}, 'file')
@@ -58,7 +58,7 @@ end
 if isempty(scriptFile)
     error(['plotcircuit_DCMotor.m が見つかりません。', ...
         'Current Folder を study-dynamics-matlab-dcmotor に設定するか、', ...
-        'addpath(''circuit-plots'') してから再実行してください。']);
+        'addpath(''lecture-diagrams'') してから再実行してください。']);
 end
 scriptDir = fileparts(scriptFile);
 filename = fullfile(scriptDir, 'dcmotor_elec_circuit.png');
