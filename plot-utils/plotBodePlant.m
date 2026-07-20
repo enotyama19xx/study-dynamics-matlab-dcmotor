@@ -1,5 +1,5 @@
 function h = plotBodePlant(G, figName, plotTitle)
-% plotBodePlant プラント G(s) のみのボード線図（白背景）
+% plotBodePlant  プラント G(s) のみのボード線図（白背景）
 %
 % h = plotBodePlant(G, figName, plotTitle)
 
@@ -8,11 +8,12 @@ if nargin < 2 || isempty(figName)
 end
 
 fig = newWhiteFigure(figName);
-h = bodeplot(G, 'Color', [0.8500 0.3250 0.0980], 'LineWidth', 1.5);
-grid on;
+opts = bodeWhiteOptions();
+h = bodeplot(fig, G, opts);
+styleBodeLineColors(fig, [0.8500 0.3250 0.0980], 1.5);
 legend('G(s)', 'Location', 'best');
 if nargin >= 3 && ~isempty(plotTitle)
-    sgtitle(plotTitle);
+    sgtitle(plotTitle, 'Color', 'k');
 end
 applyWhiteFigureStyle(fig);
 end

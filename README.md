@@ -14,7 +14,7 @@
 | `setupPaths.m` | 教材用パス設定（`simulink-utils` / `plot-utils` を追加） |
 | `simulink-utils/` | Simulink 実行・定常値計算ヘルパー |
 | `plot-utils/` | グラフ描画ヘルパー（白背景・2 段プロット・ボード線図） |
-| `lecture-diagrams/` | 教材用模式図（等価回路・機械側トルク図など） |
+| `lecture-diagrams/` | 教材用模式図（等価回路・機械側トルク図・フィードバック／プラントのブロック線図など） |
 | `README.md` | 本ファイル（セットアップ手順） |
 
 **Simulink モデル（`DCMotor_Model.slx` 等）はリポジトリに含まれません。** 第 2 章以降の手順に従い、各自で作成してください（`.gitignore` で `*.slx` を除外）。
