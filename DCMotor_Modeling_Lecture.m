@@ -1,84 +1,82 @@
 %[text] # ブラシ付き DC モータのモデリング・ダイナミクス解析・制御
-%[text] このファイルは MATLAB R2025b 以降のプレーンテキスト Live Code 形式（`.m`）です。Files パネルから 開く（テキストとして開くではない）と、Live Editor で解説・数式・コードが一体化した教材として表示されます。
-%[text] 前提教材：RLC回路モデリング演習（study-dynamics-matlab）。GitHub URL は https://github.com/enotyama19xx/study-dynamics-matlab 。RL 回路の時定数、Simulink の Integrator 方式、ステップ応答の読み方などは復習程度で進めます。
+%[text] このファイルは MATLAB R2025b 以降のプレーンテキスト Live Code 形式（`.m`）です。Files パネルから 開く（テキストとして開くではない）と，Live Editor で解説・数式・コードが一体化した教材として表示されます。
+%[text] 前提教材：RLC回路モデリング演習（[study-dynamics-matlab](https://github.com/enotyama19xx/study-dynamics-matlab)）：RL 回路の時定数，Simulink の Integrator 方式，ステップ応答の読み方などは復習程度で進めます。
 %%
 %[text] ## 1. モデリング・ダイナミクス（前教材との接続）
-%[text] 本章では、前教材で学んだ RL 回路（1 階 ODE・時定数 $\\tau = L/R$）を出発点に、ブラシ付き DC モータを 電気系＋機械系の結合モデル として定式化します。第 2 章では手計算と Simulink（Integrator 方式・Simscape 方式）でダイナミクスを解析し、第 3 章で伝達関数に基づく速度制御設計へ進みます。
+%[text] 本章では，前教材で学んだ RL 回路を出発点に，ブラシ付き DC モータを 電気系＋機械系の結合モデル として定式化します。第 2 章では手計算と Simulink（Integrator 方式・Simscape 方式）でダイナミクスを解析し，第 3 章で伝達関数に基づく速度制御設計へ進みます。
 %%
 %[text] ### 1.1 本教材の位置づけと学習目標
-%[text] 前教材では、R → L → RL → RLC の順に回路をモデル化し、微分方程式と Simulink（Integrator 中心）による数値シミュレーションを学びました。本教材ではその延長として、モータの等価的な回路（等価回路）と 機械を結合した 2 変数（電流 $i$、角速度 $\\omega$）の連立微分方程式を扱います。
+%[text] 前教材では，R → L → RL → RLC の順に回路をモデル化し，微分方程式と Simulink（Integrator 中心）による数値シミュレーションを学びました。本教材ではその延長として，モータの等価的な回路（等価回路）と 機械を結合した 2 変数（電流 $i$，角速度 $\\omega$）の連立微分方程式を扱います。
 %[text] 学習目標は次のとおりです。
 %[text] - ブラシ付き DC モータを RL 回路＋逆起電力＋機械系としてモデル化できること
-%[text] - 電気方程式・トルク方程式から連立微分方程式を立て、各変数の時間変化を説明できること
+%[text] - 電圧方程式・トルク方程式から連立微分方程式を立て，各変数の特性を説明できること
 %[text] - 手計算で定常値・過渡応答のイメージを把握できること
-%[text] - Simulink（Integrator 方式・Simscape 方式）でダイナミクスをシミュレーションし、両者の波形が一致することを確認できること
+%[text] - Simulink（Integrator 方式・Simscape 方式）でダイナミクスをシミュレーションし，両者の波形が一致することを確認できること
 %[text] - プラントの伝達関数をボード線図で直感的に読み取れること
-%[text] - 一巡伝達関数を用いたループ整形法で速度制御器を設計し、Simulink で検証できること \
-%[text] 本教材で扱わないこと： 前教材のように ode45 による MATLAB 数値積分は使いません。ダイナミクスの数値計算は Simulink に集約 します。
+%[text] - 一巡伝達関数を用いたループ整形法で速度制御器を設計し，Simulink で検証できること \
 %%
 %[text] ### 1.2 RL 回路の復習（電気側）
 %[text] ![](text:image:612b)
-%[text] 前教材 2.3 節（RL 回路）を思い出してください。直列 RL 回路にステップ電圧 $V\_0$ を印加したとき、キルヒホッフの電圧法則（KVL）より：
+%[text] 前教材 2.3 節（RL 回路）を思い出してください。直列 RL 回路にステップ電圧 $V\_0$ を印加したとき，キルヒホッフの電圧法則（KVL）より
 %[text] $v(t)=R\\,i(t)+L\\,\\frac{di(t)}{dt}${"editStyle":"visual"}
-%[text] 整理すると 1 階線形常微分方程式：
+%[text] 整理すると 1 階線形常微分方程式が得られます。
 %[text] $\\frac{di(t)}{dt}+\\frac{R}{L}\\,i(t)=\\frac{1}{L}\\,v(t)${"editStyle":"visual"}
-%[text] 時定数 $\\tau\_{elec} = L/R$ \[$\\mathrm{s}$\] は「電流が定常値の約 63% まで立ち上がる目安の時間」です。ステップ入力 $v(t)=V\_0$（$i(0)=0$）では、定常電流 $i\_{ss} = V\_0/R$ に指数関数的に近づきます。
-%[text] DC モータの等価回路も、抵抗 $R$ とインダクタンス $L$ を持つ RL 回路として捉えられます。ただし回転に伴い 逆起電力が新たに加わる点が RL 回路との決定的な違いです。
+%[text] 時定数 $\\tau\_{elec} = L/R$ \[$\\mathrm{s}$\] は「電流が定常値の約 63% まで立ち上がる目安の時間」です。ステップ入力 $v(t)=V\_0$（$i(0)=0$）では，定常電流 $i\_{ss} = V\_0/R$ に指数関数的に近づきます。
+%[text] DC モータも電流を流して発生する磁束を利用するものなので，その等価回路は抵抗 $R$ とインダクタンス $L$ を持つ RL 回路として捉えられます。ただし，回転によって 逆起電力が発生する点が RL 回路との決定的な違いです。
 %%
 %[text] ### 1.3 ブラシ付き DC モータの等価回路（電気側）
-%[text] ブラシ付き DC モータを、電源電圧 $V$、抵抗 $R$、インダクタ $L$、逆起電力源 の直列等価回路として表現します。
+%[text] ブラシ付き DC モータを，電源電圧 $V$，抵抗 $R$，インダクタ $L$，逆起電力源 の直列等価回路として表現します。
 %[text] ![](text:image:0b1c)
-%[text] $V(t)$ はモータの端子に印加する端子電圧です。$i(t)$ \[$\\mathrm{A}$\] はモータに流れる電流です。$R$ \[$\\Omega$\] はモータの巻線に存在する内部抵抗です。$L$ \[$\\mathrm{H}$\] はモータの巻線のインダクタンスです。$\\omega(t)$ \[$\\mathrm{rad/s}$\] は回転角速度です。逆起電力は回転速度に比例するため、その比例係数を逆起電力定数$K\_e$ \[$\\mathrm{V\\,s/rad}$\] はとしておいています。
+%[text] $V$ はモータの端子に印加する端子電圧です。$i$ はモータに流れる電流です。$R$ はモータの巻線に存在する内部抵抗です。$L$はモータの巻線のインダクタンスです。$\\omega$ \[$\\mathrm{rad/s}$\] は回転角速度です。逆起電力は回転速度に比例するため，その比例係数を逆起電力定数$K\_e$ \[$\\mathrm{V\\,s/rad}$\] はとしておいています。
 %[text] KVL より 電気側の基本方程式：
 %[text] $V(t)=R\\,i(t)+L\\,\\frac{di(t)}{dt}+K\_e \\,\\omega (t)${"editStyle":"visual"}
-%[text] RL 回路の式 $v = Ri + L\\,di/dt$ に $K\_e\\,\\omega$ 項が加わった 形です。モータが回転すると逆起電力が電源電圧を相殺するため、同じ $V$ でも電流 $i$ は RL 回路単体より小さくなります。DCモータ以外でも、基本的な等価回路は同じで、相の数が変わるぐらいですので、この型は覚えておいてください。
+%[text] RL 回路の式 $v = Ri + L\\,di/dt$ に $K\_e\\,\\omega$ 項が加わった 形です。DCモータ以外でも，基本的な等価回路は同じで，相の数が変わるぐらいですので，この型は覚えておいてください。
+%[text] ※モータがロックすると大電流が流れることが知られていますが，それは $\\omega${"editStyle":"visual"} がゼロで，電源電圧がそのままRL回路に加わるためです。R, Lは，できるだけ小さい値になるよう設計されることが多いです。
 %%
 %[text] ### 1.4 電磁トルク（電流に比例する駆動トルク）
-%[text] 1\.3 節までは 電気側 の式を扱いました。ロータを回す力は 機械側のトルク として現れます。ブラシ付き DC モータでは、電機子（巻線）に流れる電流 $i(t)$ が磁界内の導体に働く ローレンツ力 F により、シャフト方向の 電磁トルク（駆動トルク） $T\_m(t)$ を生み出します。
+%[text] 1\.3 節までは 電気側 の式を扱いました。ロータを回す力は 機械側のトルク として現れます。ブラシ付き DC モータでは，電機子（巻線）に流れる電流 $i(t)$ が磁界内の導体に働く ローレンツ力 F により，シャフト方向の 電磁トルク（駆動トルク） $T\_m(t)$ を生み出します。
 %[text] ![](text:image:0740)
-%[text] 磁気回路が飽和していない通常の動作範囲では、この電磁トルクは 電流 $i$ に比例 します。
+%[text] 磁気回路が飽和していない通常の動作範囲では，この電磁トルクは 電流 $i$ に比例 します。
 %[text] $T\_m (t)=K\_t \\,i(t)${"editStyle":"visual"}
-%[text] $K\_t$ \[$\\mathrm{N\\,m/A}$\] は トルク定数 です。$i$ が大きいほど磁場と電流の相互作用が強くなり、シャフトに大きなトルクが伝わります。
+%[text] $K\_t$ \[$\\mathrm{N\\,m/A}$\] は トルク定数 です。$i$ が大きいほど磁場と電流の相互作用が強くなり，シャフトに大きなトルクが伝わります。
 %%
 %[text] ### 1.5 機械側（慣性・粘性摩擦・負荷トルク）
-%[text] 1\.4 節までで、電流 $i$ から駆動トルク $T\_m = K\_t\\,i$ が生まれることを述べました。ここからは シャフトがトルクによってどう回転速度が決まるかを考えます。機械系の詳細な知識がなくても、前教材の RL 回路と 対応関係 を意識すると理解しやすくなります。
-%[text] 機械側の入力はトルクで、出力は 角速度 $\\omega(t)$ \[$\\mathrm{rad/s}$\] です。
-%[text] シャフトまわりで押し返す要素を 3 つ に分けてモデル化します。まず **直線運動の運動方程式** と対比すると、慣性・粘性摩擦の意味が掴みやすくなります。
-%[text] 質量 $m$ \[$\\mathrm{kg}$\] の物体を、力 $F$ \[$\\mathrm{N}$\] で直線方向に動かす場合、ニュートンの運動方程式は
+%[text] 1\.4 節までで，電流 $i$ から駆動トルク $T\_m = K\_t\\,i$ が生まれることを述べました。ここからは シャフトがトルクによってどう回転速度が決まるかを考えます。機械系の詳細な知識がなくても，前教材の RL 回路と 対応関係 を意識すると理解しやすくなります。
+%[text] 機械側の入力はトルクで，出力は 角速度 $\\omega(t)$ \[$\\mathrm{rad/s}$\] です。
+%[text] シャフトまわりで押し返す要素を 3 つ に分けてモデル化します。まず **直線運動の運動方程式** と対比すると，慣性・粘性摩擦の意味が掴みやすくなります。
+%[text] 質量 $m$ \[$\\mathrm{kg}$\] の物体を，力 $F$ \[$\\mathrm{N}$\] で直線方向に動かす場合，ニュートンの運動方程式は
 %[text] $m\\,\\frac{dv(t)}{dt}=F(t)-c\\,v(t)-F\_L${"editStyle":"visual"}
 %[text] と書けます。
 %[text] ![](text:image:7950)
-%[text] $v(t)$ \[$\\mathrm{m/s}$\] は速度、$c$ \[$\\mathrm{N\\,s/m}$\] は 速度に比例する粘性減衰係数、$F\_L$ \[$\\mathrm{N}$\] は逆方向に引っ張られる力です。左辺 $m\\,dv/dt$ は「速度がどれだけ速く変わるか」、右辺は「加えた力」から「減衰」と「外付け負荷」を引いた 正味の力 です。
-%[text] シャフトの回転運動では、次のように読み替えるだけで同じ形の式が成り立ちます。
-%[text] - 位置 $x$ → 角度 $\\theta$、速度 $v$ → 角速度 $\\omega$
-%[text] - 力 $F$ → トルク $T$、質量 $m$ → 慣性モーメント $J$、粘性減衰 $c$ → 粘性摩擦 $B$、外付け力 $F\_L$ → 外付け負荷トルク $T\_L$ \
-%[text] この対応を踏まえて、回転側の 3 要素を整理します。
-%[text] - 慣性 $J$ \[$\\mathrm{kg\\,m^2}$\]：直線運動の 質量 $m$ に相当します。ロータと負荷をまとめた「重さ・太さ」に相当する概念です。$J$ が大きいほど、トルクを加えても $\\omega$ は すぐには変わりません。電気回路で言えば インダクタ $L$ が電流 $i$ の変化を遅らせる のと同じ働きです。
-%[text] - 粘性摩擦 $B$ \[$\\mathrm{N\\,m\\,s/rad}$\]：直線運動の 粘性減衰 $c$ に相当します。軸受や空気抵抗など、回転が速いほど大きくなる反対向きのトルクです。常に $\\omega$ を小さくしようとする「損失」として働きます。電気回路の 抵抗 $R$ に相当します。
-%[text] - 外付け負荷 $T\_L$ \[$\\mathrm{N\\,m}$\]：直線運動の 外付け力 $F\_L$ に相当します。ギアや外部機構など、モータ外からシャフトに加わるトルクです。（重い荷物を常に持ち上げ続ける、といったイメージ）。 \
-%[text] 以上をまとめると、シャフトに働く正味のトルクは「モータが出す $T\_m$」から「摩擦 $B\\,\\omega$」と「負荷 $T\_L$」を引いたものになります。この正味トルクが $\\omega$ の変化率（角加速度）を決めます。直線運動の $m\\,dv/dt = F - c\\,v - F\_L$ と同型です。
+%[text] $v(t)$ \[$\\mathrm{m/s}$\] は速度，$c$ \[$\\mathrm{N\\,s/m}$\] は 速度に比例する粘性減衰係数，$F\_L$ \[$\\mathrm{N}$\] は逆方向に引っ張られる力です。左辺 $m\\,dv/dt$ は「速度がどれだけ速く変わるか」，右辺は「加えた力」から「減衰」と「外付け負荷」を引いた 正味の力 です。
+%[text] シャフトの回転運動では，次のように読み替えるだけで同じ形の式が成り立ちます。
+%[text] - 位置 $x$ → 角度 $\\theta$
+%[text] - 速度 $v$ → 角速度 $\\omega$ \
+%[text] この対応を踏まえて，回転運動における方程式を以下のように書くことにします。
 %[text] $J\\,\\frac{d\\omega (t)}{dt}=T\_m (t)-B\\,\\omega (t)-T\_L \\;,\\,\\,T\_m (t)=K\_t \\,i(t)${"editStyle":"visual"}
-%[text] 左辺 $J\\,d\\omega/dt$ は「回転の速さがどれだけ速く変化するか」です（直線運動の $m\\,dv/dt$ に相当）。右辺第 1 項 $T\_m = K\_t\\,i$ は 1.4 節の電磁トルク（電流が大きいほど強く回そうとする力）。第 2 項 $B\\,\\omega$ は摩擦による減速（$c\\,v$ に相当）。第 3 項 $T\_L$ は外付け負荷による減速（$F\_L$ に相当）です。定常状態（$d\\omega/dt = 0$）では $K\_t\\,i = B\\,\\omega + T\_L$ となり、「流れ込む電気エネルギー（トルク）」と「摩擦＋負荷で消費される分」が釣り合います。
+%[text] 左辺 $J\\,d\\omega/dt$ は「回転の速さがどれだけ速く変化するか」です（直線運動の $m\\,dv/dt$ に相当）。右辺第 1 項 $T\_m = K\_t\\,i$ は 1.4 節の電磁トルク（電流が大きいほど強く回そうとする力）。第 2 項 $B\\,\\omega$ は摩擦による減速（$c\\,v$ に相当）。第 3 項 $T\_L$ は外付け負荷による減速（$F\_L$ に相当）です。定常状態（$d\\omega/dt = 0$）では $K\_t\\,i = B\\,\\omega + T\_L$ となり，「流れ込む電気エネルギー（トルク）」と「摩擦＋負荷で消費される分」が釣り合います。
+%[text] 新たにパラメータが色々出てきていますが，それぞれ次のように対応します。
+%[text] - イナーシャ $J$ \[$\\mathrm{kg\\,m^2}$\]：直線運動の 質量 $m$ に相当します。ロータと負荷をまとめた「重さ・太さ」に相当する概念です。$J$ が大きいほど，トルクを加えても $\\omega$ は すぐには変わりません。電気回路で言えば インダクタ $L$ が電流 $i$ の変化を遅らせる のと同じ働きです。
+%[text] - 粘性摩擦 $B$ \[$\\mathrm{N\\,m\\,s/rad}$\]：直線運動の 粘性減衰 $c$ に相当します。軸受や空気抵抗など，回転が速いほど大きくなる反対向きのトルクです。常に $\\omega$ を小さくしようとする「損失」として働きます。電気回路の 抵抗 $R$ に相当します。 \
 %[text] ![](text:image:6298)
-%[text] 機械側にも時定数 $\\tau\_{mech} = J/B$ \[$\\mathrm{s}$\] があります（直線運動では $m/c$ に相当する時間スケール）。$B$ が大きい（摩擦が強い）ほど $\\omega$ は早く落ち着き、$J$ が大きいほど立ち上がり・停止が遅くなります。電気側の $\\tau\_{elec} = L/R$ と並べて読むと、2 変数系のイメージが掴みやすくなります。
+%[text] 回転運動の方程式も1階の微分方程式ですので，時定数 $\\tau\_{mech} = J/B$ \[$\\mathrm{s}$\] があります。$B$ が大きい（摩擦が強い）ほど $\\omega$ は早く落ち着き，$J$ が大きいほど立ち上がり・停止が遅くなります。電気側の $\\tau\_{elec} = L/R$ と並べて読むと，2 変数系のイメージが掴みやすくなります。
 %%
 %[text] ### 1.6 電気系と機械系の結合（$K\_t$ と $K\_e$ の関係）
-%[text] 電気側の式と機械側の式は、未知量 $i(t)$ と $\\omega(t)$ について  1 階微分の連立方程式 を構成します。電流 $i$ が機械側のトルクを決め、角速度 $\\omega$ が電気側の逆起電力を決める、この 双方向の結合 が DC モータのダイナミクスの核心です。
-%[text] ちなみに、SI 単位系では、同一モータについて$K\_t =K\_e${"editStyle":"visual"} が成り立ちます。（詳細な導出は電気機器の教科書に譲りますが、本教材では $K\_t = K\_e = K$ と 同一係数 $K$ で扱います）。以降、パラメータ名は Kt, Ke としてコード上も分けますが、数値は同じに設定します。
+%[text] 電気側の式と機械側の式は， $i(t)$ と $\\omega(t)$ について  1 階微分の連立方程式 を構成します。さらに，電流 $i$ が機械側の入力たるトルクを決め，角速度 $\\omega$ が電気側の入力である電圧に対抗する逆起電力を決める，この 双方向の結合 が DC モータのダイナミクスの核心です。
+%[text] ちなみに，SI 単位系では，同一モータについて$K\_t =K\_e${"editStyle":"visual"} が成り立ちます。（詳細な導出は電気機器の教科書に譲りますが，本教材では $K\_t = K\_e = K$ と 同一係数 $K$ で扱います）。以降，パラメータ名は Kt, Ke としてコード上も分けますが，数値は同じに設定します。
 %%
 %[text] ### 1.7 Integrator 方式 Simulink 向けの 1 階連立形
-%[text] 前教材 2.3 節（RL 回路）・2.4 節（RLC 回路）と同様、Simulink では微分方程式を $\\frac{di}{dt}$、$\\frac{d\\omega}{dt}$ の形 に直し、Integrator ブロックで $i$ と $\\omega$ を生成します。電気式を $di/dt$ について解くと：
+%[text] 前教材 2.3 節（RL 回路）・2.4 節（RLC 回路）と同様，Simulink では微分方程式を $\\frac{di}{dt}$，$\\frac{d\\omega}{dt}$ の形 に直し，Integrator ブロックで $i$ と $\\omega$ を生成します。電気式を $di/dt$ について解くと：
 %[text] $\\frac{di(t)}{dt}=\\frac{V(t)-R\\,i(t)-K\_e \\,\\omega (t)}{L}${"editStyle":"visual"}
 %[text] 機械式を $d\\omega/dt$ について解くと：
 %[text] $\\frac{d\\omega (t)}{dt}=\\frac{K\_t \\,i(t)-B\\,\\omega (t)-T\_L }{J}${"editStyle":"visual"}
-%[text] ここで重要なことは、RL 回路では変数が  $i(t)$ 1 つであったのに対してDCモータは $i(t)$ と $\\omega(t)$ 2 変数へ拡張された点です。
+%[text] ここで重要なことは，RL 回路では変数が  $i(t)$ 1 つであったのに対してDCモータは $i(t)$ と $\\omega(t)$ 2 変数へ拡張された点です。
 %%
-%[text] ### 1.8 フィードバック制御の必要性
-%[text] ここまでの開ループモデルでは、ステップ電圧 $V\_0$ を印加すると角速度 $\\omega$ はある定常値に近づきますが、その値は $R$, $L$, $J$, $B$, $K$, $T\_L$ すべてに依存します。実際の速度制御では 望ましい角速度 $\\omega\_{ref}$ に対し、制御器が電圧 $V$（または電流指令）を自動調整する フィードバック制御 が必要です。
-%[text] 第 3 章では、まず 速度 PI 制御器が電圧 $V$ を直接操作する 単純な構成でゲイン調整の限界を体験し、その後 電流内側ループ を追加したカスケード構成と比較します。
+%[text] ### 1.8 【余談】フィードバック制御の必要性
+%[text] ここでの開ループモデルでは，ステップ電圧 $V\_0$ を印加すると角速度 $\\omega$ はある定常値に近づきますが，その値は $R$, $L$, $J$, $B$, $K$, $T\_L$ すべてに依存します。実際の速度制御では 望ましい角速度 $\\omega\_{ref}$ に対し，制御器が電圧 $V$（または電流指令）を自動調整する フィードバック制御 が必要です。
 %%
 %[text] ### 1.9 標準パラメータの定義（MATLAB コード）
-%[text] 以降の章で Simulink モデルとプロットに使う 標準パラメータ をワークスペースに定義します。電気側（$R$、$L$、$K\_t$、$K\_e$）は小さめ DC モータのオーダー、$J$・$B$ は負荷込みの教材用値（SI 単位）です。Simulink 内の Gain・Step ブロックはこれらの変数名を参照する想定です。下のコードセクションを Run Section（セクションの実行）（Ctrl+Enter）で実行してください。
+%[text] 以降の章で Simulink モデルとプロットに使う 標準パラメータ をワークスペースに定義します。電気側（$R$，$L$，$K\_t$，$K\_e$）は小さめ DC モータのオーダー，$J$・$B$ は負荷込みの教材用値（SI 単位）です。Simulink 内の Gain・Step ブロックはこれらの変数名を参照する想定です。下のコードセクションを Run Section（セクションの実行）（Ctrl+Enter）で実行してください。
 lectureFile = which('DCMotor_Modeling_Lecture');
 if ~isempty(lectureFile)
     run(fullfile(fileparts(lectureFile), 'setupPaths.m'));
@@ -103,21 +101,21 @@ fprintf(['Parameters defined:\n' ... %[output:group:64a9966e] %[output:9ba97d77]
     R, L, J, B, Kt, V0, TL, Tsim, tau_elec, tau_mech); %[output:group:64a9966e] %[output:9ba97d77]
 %%
 %[text] ## 2. ダイナミクス解析（手計算＋Simulink）
-%[text] 本章では、第 1 章で立てた連立微分方程式について、手計算・Simulink（Integrator 方式）・Simulink（Simscape 方式）の 3 つの視点を並べて扱います。いずれも同じ物理モデル・同じパラメータ・同じ入力条件で結果を比較し、解析とシミュレーションの対応を確認します。
-%[text] なお Integrator 方式も Simscape 方式も Simulink 上のシミュレーションです。Integrator 方式は 1.7 節の式をそのままブロック化 する実装、Simscape 方式は 物理素子を接続 する実装、という違いがあります。
+%[text] 本章では，第 1 章で立てた連立微分方程式について，手計算・Simulink（Integrator 方式）・Simulink（Simscape 方式）の 3 つの視点を並べて扱います。いずれも同じ物理モデル・同じパラメータ・同じ入力条件で結果を比較し，解析とシミュレーションの対応を確認します。
+%[text] なお Integrator 方式も Simscape 方式も Simulink 上のシミュレーションです。Integrator 方式は 1.7 節の式をそのままブロック化 する実装，Simscape 方式は 物理素子を接続 する実装，という違いがあります。
 %%
 %[text] ### 2.1 手計算による過渡応答のイメージ
-%[text] 第 1 章の与条件（$i(0)=0$、$\\omega(0)=0$、$V(t)=V\_0$ ステップ、$T\_L$ 一定）のもとで、定常値と過渡応答のイメージを整理します。詳細な時間応答の解析は Simulink に任せ、ここでは 定常値の計算 と 二次系としての性質 の把握を目的とします。
-%[text] 定常状態の計算
-%[text] 定常状態では $\\frac{di}{dt}=0$、$\\frac{d\\omega}{dt}=0$ です。第 1 章の式に代入すると、電気側 $V\_0 = R\\,i\_{ss} + K\_e\\,\\omega\_{ss}$、機械側 $K\_t\\,i\_{ss} = B\\,\\omega\_{ss} + T\_L$ が成り立ちます。2 式を解くと：
+%[text] 第 1 章の与条件（$i(0)=0$，$\\omega(0)=0$，$V(t)=V\_0$ ステップ，$T\_L$ 一定）のもとで，定常値と過渡応答のイメージを整理します。詳細な時間応答の解析は Simulink に任せ，ここでは 定常値の計算 と 二次系としての性質 の把握を目的とします。
+%[text] #### 定常状態の計算
+%[text] 定常状態では $\\frac{di}{dt}=0$，$\\frac{d\\omega}{dt}=0$ です。第 1 章の式に代入すると，電気側 $V\_0 = R\\,i\_{ss} + K\_e\\,\\omega\_{ss}$，機械側 $K\_t\\,i\_{ss} = B\\,\\omega\_{ss} + T\_L$ が成り立ちます。2 式を解くと：
 %[text] $\\omega\_{ss} =\\frac{V\_0 K\_t -R\\,T\_L }{K\_e K\_t +R\\,B}${"editStyle":"visual"}
 %[text] $i\_{ss} =\\frac{B\\,\\omega\_{ss} +T\_L }{K\_t }${"editStyle":"visual"}
-%[text] $T\_L=0$ のとき、$\\omega\_{ss} = \\frac{V\_0 K\_t}{K\_e K\_t + R\\,B}$ です。RL 回路単体（$K\_e=0$）の定常電流 $V\_0/R$ とは異なり、逆起電力と摩擦のバランスで角速度が決まります。
-%[text] 二次系としての性質（$V \\to \\omega$）
-%[text] 信号 $V$ から $\\omega$ までの入力出力関係は、電気系と機械系の結合により 2 次系 として扱えます。
+%[text] $T\_L=0$ のとき，$\\omega\_{ss} = \\frac{V\_0 K\_t}{K\_e K\_t + R\\,B}$ です。RL 回路単体（$K\_e=0$）の定常電流 $V\_0/R$ とは異なり，逆起電力と摩擦のバランスで角速度が決まります。
+%[text] #### 二次系としての性質（$V \\to \\omega$）
+%[text] 信号 $V$ から $\\omega$ までの入力出力関係は，電気系と機械系の結合により 2 次系 として扱えます。
 %[text] 特性式は
 %[text] $(Js+B)(Ls+R)+K\_e K\_t =0${"editStyle":"visual"}
-%[text] となり、2 つの実根（過減衰）または共役複素根（不足減衰）を持ちます。標準パラメータ（1.9 節）では過減衰で、電気時定数 $\\tau\_{elec}=L/R$（数 ms）より機械側 $\\tau\_{mech}=J/B$（約 2 s）の方がはるかに大きく、角速度は ゆっくり立ち上がる 応答になります。
+%[text] となり，2 つの実根（過減衰）または共役複素根（不足減衰）を持ちます。標準パラメータ（1.9 節）では過減衰で，電気時定数 $\\tau\_{elec}=L/R$（数 ms）より機械側 $\\tau\_{mech}=J/B$（約 2 s）の方がはるかに大きく，角速度は ゆっくり立ち上がる 応答になります。
 %[text] 下のコードセクションで定常値と特性根を計算します。1.9 節を先に実行してパラメータが定義されていることを確認してください。
 [i_ss, omega_ss] = computeDCMotorSteadyState(V0, R, B, Kt, Ke, TL);
 charPoly = [J*L, J*R + B*L, B*R + Ke*Kt];
@@ -128,35 +126,23 @@ fprintf(['Hand calculation (steady state):\n' ... %[output:group:6c89ffc0] %[out
     i_ss, omega_ss, poles(1), poles(2)); %[output:group:6c89ffc0] %[output:59de716d]
 %%
 %[text] ### 2.2 Simulinkの実装
-%[text] 1\.7 節の連立微分方程式を、Integrator・Gain・Sum ブロックで実装します。リポジトリには `DCMotor_Model.slx` を同梱しないため、以下の手順で各自作成してください。完成ファイルは `DCMotor_Modeling_Lecture.m` と 同じフォルダ に保存します。
-%[text] #### 手順 1：Simulink を起動し、新規モデルを開く
-%[text] 1. MATLAB コマンドウィンドウで `simulink` と入力して Simulink を起動する \
-%[text] 1. 空のモデル を選び、新規モデルエディタを開く
-%[text] 2. モデル名を `DCMotor_Model` とし、教材 `.m` と同じフォルダに `DCMotor_Model.slx` として保存する \
+%[text] 1\.7 節の連立微分方程式を，Integrator・Gain・Sum ブロックで実装します。リポジトリには `DCMotor_Model.slx` を同梱しないため，以下の手順で各自作成してください。完成ファイルは `DCMotor_Modeling_Lecture.m` と 同じフォルダ に保存します。
+%[text] #### 手順 1：Simulink を起動し，新規モデルを開く
+%[text] 1. MATLAB コマンドウィンドウで `simulink` と入力して Simulink を起動する
+%[text] 2. 空のモデル を選び，新規モデルエディタを開く（もしくはこれまで作成したRL回路のモデルをコピーしてくる）
+%[text] 3. モデル名を `DCMotor_Model` とし，教材 `.m` と同じフォルダに `DCMotor_Model.slx` として保存する \
 %[text] #### 手順 2：実装する微分方程式（1.7 節と同じ）
 %[text] $\\frac{di}{dt} = \\frac{V - R\\,i - K\_e\\,\\omega}{L}$
 %[text] $\\frac{d\\omega}{dt} = \\frac{K\_t\\,i - B\\,\\omega - T\_L}{J}$
-%[text] 初期条件 $i(0)=0$、$\\omega(0)=0$。入力 $V(t)=V\_0$（$t \\ge 0$ ステップ）。
+%[text] 
 %[text] #### 手順 3：ブロック線図を組む
-%[text] 端子配線の図ではなく、1.7 節の式を「微分方程式の信号の流れ」として表すブロック線図を組み立てます。
-%[text] **使うブロック（Simulink 標準）**
-%[text] - **Step**（入力電圧 $V\_0$）
-%[text] - **Constant**（負荷トルク $T\_L$）
-%[text] - **Sum**（加算。電流経路・角速度経路で各 1 個、計 2 個）
-%[text] - **Gain**（$R$、$K\_e$、$1/L$、$K\_t$、$B$、$1/J$）
-%[text] - **Integrator**（$i$ と $\\omega$ を生成）× 2
-%[text] - **To Workspace**（`v_sim`・`i_sim`・`omega_sim` 用。手順 5 で接続）× 3 \
-%[text] **配線の要点（推奨構成）**
-%[text] 1. **入力電圧** — Step ブロックで $V(t)=V\_0$（$t \\ge 0$）を生成する
-%[text] 2. **電流** $i$ **の経路** — Step 出力を Sum へ。Sum で `V - R*i - Ke*omega` を計算（**List of signs** = `++-`：$+V$、$-R\\,i$、$-K\_e\\,\\omega$）→ Gain `1/L` → Integrator（出力 $i$。**Initial condition** = `0`）
-%[text] 3. **角速度** $\\omega$ **の経路** — Integrator（$i$）出力 → Gain `Kt` を Sum へ。Constant `TL` を Sum のマイナス入力へ。Integrator（$\\omega$）出力 → Gain `B` を Sum のマイナス入力へ。Sum で `Kt*i - B*omega - TL` を計算 → Gain `1/J` → Integrator（出力 $\\omega$。**Initial condition** = `0`）
-%[text] 4. **フィードバック** — Integrator（$\\omega$）出力を Gain `Ke` 経由で電流側 Sum のマイナス入力へ（逆起電力）。Integrator（$i$）出力を Gain `R` 経由で電流側 Sum、Gain `Kt` 経由で角速度側 Sum へ接続する \\ \
+%[text] 端子配線の図ではなく，1.7 節の式を「微分方程式の信号の流れ」として表すブロック線図を組み立てます。
 %[text] #### 手順 4：パラメータを変数参照に設定する
-%[text] Gain・Step・Constant は 1.9 節の変数名を参照する（数値を直接書かない）。Step：Step time = `0`、Initial value = `0`、Final value = `V0`。Constant：Value = `TL`。Gain：`R`, `Ke`, `1/L`, `Kt`, `B`, `1/J`。 \\
+%[text] Gain・Step・Constant は 1.9 節の変数名を参照する（数値を直接書かない）。Step：Step time = `0，`Initial value = `0，`Final value = `V0`。Constant：Value = `TL`。Gain：`R`, `Ke`, `1/L`, `Kt`, `B`, `1/J`。 \\
 %[text] #### 手順 5：出力とシミュレーション設定
-%[text] Step 出力 → To Workspace（`v_sim`、Save format = Array）。$i$ Integrator 出力 → To Workspace（`i_sim`）。$\\omega$ Integrator 出力 → To Workspace（`omega_sim`）。Model Settings → Data Import/Export で Time にチェック（変数名 `tout`）。Stop time = `Tsim`。
+%[text] Step 出力 → To Workspace（`v_sim，`Save format = Array）。$i$ Integrator 出力 → To Workspace（`i_sim`）。$\\omega$ Integrator 出力 → To Workspace（`omega_sim`）。Model Settings → Data Import/Export で Time にチェック（変数名 `tout`）。Stop time = `Tsim`。
 %[text] #### 手順 6：Simulink 実行と結果プロット
-%[text] 1\.8 節を Run Section 済みであることを確認し、Simulink モデルで Run してエラーがないことを確認します。続いて下のコードセクションで `simulateDCMotorModel` により再実行し、入力電圧と角速度を上下 2 段でプロットします。2.1 節の定常値 $\\omega\_{ss}$ と最終的な波形の定常値が近いことを確認してください。
+%[text] 2\.1節のスクリプトを実行済みであることを確認し，Simulink モデルで Run して，エラーがないことを確認します。続いて下のコードセクションで `simulateDCMotorModel` により再実行し，入力電圧と角速度を上下 2 段でプロットします。2.1 節の定常値 $\\omega\_{ss}$ と最終的な波形の定常値が近いことを確認してください。
 modelName = 'DCMotor_Model';
 [t, v, i, omega, ok] = simulateDCMotorModel(modelName, Tsim);
 if ok %[output:group:657418cb]
@@ -167,19 +153,19 @@ if ok %[output:group:657418cb]
     fprintf('Simulink model "%s" completed. omega(end)=%g rad/s\n', modelName, omega(end)); %[output:9b89c989]
 end %[output:group:657418cb]
 %%
-%[text] ### 2.3 Simulink：Simscape 方式
+%[text] ### 2.3 Simscape によるシミュレーション
 %[text] Simscape Electrical の DC Motor 素子（または等価な RL ＋ 回転機械の接続）で 同一の物理モデル を Simulink 上に構築します。Simscape / Simscape Electrical のライセンスが必要です。
-%[text] Integrator 方式では、1.7 節の式をそのままブロック化していました。Simscape 方式は、電気端子・機械端子を 物理素子で接続していく方法をとります。パラメータ $R$, $L$, $K\_t$, $K\_e$, $J$, $B$ は 1.9 節と同じ値に設定します。
+%[text] Integrator 方式では，1.7 節の式をそのままブロック化していました。Simscape 方式は，電気端子・機械端子を 物理素子で接続していく方法をとります。パラメータ $R$, $L$, $K\_t$, $K\_e$, $J$, $B$ は 1.9 節と同じ値に設定します。
 %[text] #### 手順 1：新規モデル `DCMotor_Simscape.slx` を作成
 %[text] 1. Simulink 起動 → 空のモデル → 名前 `DCMotor_Simscape` で教材フォルダに保存
 %[text] 2. Simscape → Simscape → Solver Configuration ブロックを配置
-%[text] 3. Simscape → Foundation Library → Electrical → Electrical Elements → または Simscape Electrical → Specialized Power Systems / Electric Drives から DC Motor 関連ブロックを配置（環境に応じて DC Motor ブロック、または Series RLC + Rotational Electromechanical 相当の構成）
+%[text] 3. Simscape → Foundation Library → Electrical → Electrical Elements → または Simscape Electrical → Specialized Power Systems / Electric Drives から DC Motor 関連ブロックを配置（環境に応じて DC Motor ブロック，または Series RLC + Rotational Electromechanical 相当の構成）
 %[text] 4. 電源：Step または Controlled Voltage Source で $V\_0$ ステップを印加
-%[text] 5. モータパラメータ：Armature resistance = `R`、Inductance = `L`、Torque constant = `Kt`、Back-EMF constant = `Ke`、Inertia = `J`、Viscous friction = `B`
-%[text] 6. センサ：電流・角速度を PS-Simulink Converter 等で Simulink 信号に変換し、To Workspace（`i_sim`, `omega_sim`）へ。入力電圧も `v_sim` へ
-%[text] 7. Stop time = `Tsim`、Time 出力 `tout` は 2.2 節と同様 \
+%[text] 5. モータパラメータ：Armature resistance = `R，`Inductance = `L，`Torque constant = `Kt，`Back-EMF constant = `Ke，`Inertia = `J，`Viscous friction = `B`
+%[text] 6. センサ：電流・角速度を PS-Simulink Converter 等で Simulink 信号に変換し，To Workspace（`i_sim`, `omega_sim`）へ。入力電圧も `v_sim` へ
+%[text] 7. Stop time = `Tsim，`Time 出力 `tout` は 2.2 節と同様 \
 %[text] #### 手順 2：Integrator モデルとの波形比較
-%[text] 2\.2 節と 同一の $V\_0$, $T\_L$, $Tsim$ で両モデルを実行し、$i(t)$ と $\\omega(t)$ の波形を重ね描画して一致を確認します。下のコードセクションは両方の `.slx` が存在するときに比較プロットを表示します。
+%[text] 2\.2 節と 同一の $V\_0$, $T\_L$, $Tsim$ で両モデルを実行し，$i(t)$ と $\\omega(t)$ の波形を重ね描画して一致を確認します。下のコードセクションは両方の `.slx` が存在するときに比較プロットを表示します。
 modelIntegrator = 'DCMotor_Model';
 modelSimscape = 'DCMotor_Simscape';
 [t_i, ~, ~, omega_i, ok_i] = simulateDCMotorModel(modelIntegrator, Tsim);
@@ -197,10 +183,10 @@ else
     fprintf('Create DCMotor_Model.slx first (section 2.2).\n');
 end %[output:group:05b17401]
 %%
-%[text] ### 2.4 パラメータ変更と 3 方式の比較
-%[text] パラメータを変えると定常値・立ち上がりの速さが変わります。ここでは 慣性 $J$ を 2 倍 にした場合を例に、応答がどのように変化するのかを確認します。
-%[text] $J$ を 2 倍に $\\omega\_{ss}$ は変わりません（$T\_L=0$ のとき定常式に $J$ が現れないため）が、立ち上がりは 遅く なります。下のコードでは $J$ を一時的に 2 倍にして Integrator モデルを再実行します。Simulink モデル内の $J$ 参照はワークスペース変数のため、実行前に `J` を変更すればモデルに反映されます（Simscape 側も Inertia = `J` 参照なら同様）。
-%[text] 演習：$B$ を 2 倍、$T\_L$ を 0.05 N·m などに変え、2.1 節の式で $\\omega\_{ss}$ を予測してから Simulink で確認してください。
+%[text] ### 2.4 パラメータ変更による応答波形の比較
+%[text] パラメータを変えると定常値・立ち上がりの速さが変わります。ここでは 慣性 $J$ を 2 倍 にした場合を例に，応答がどのように変化するのかを確認します。
+%[text] $J$ を 2 倍に $\\omega\_{ss}$ は変わりません（$T\_L=0$ のとき定常式に $J$ が現れないため）が，立ち上がりは 遅く なります。下のコードでは $J$ を一時的に 2 倍にして Integrator モデルを再実行します。Simulink モデル内の $J$ 参照はワークスペース変数のため，実行前に `J` を変更すればモデルに反映されます（Simscape 側も Inertia = `J` 参照なら同様）。
+%[text] 演習：$B$ を 2 倍，$T\_L$ を 0.05 N·m などに変え，2.1 節の式で $\\omega\_{ss}$ を予測してから Simulink で確認してください。
 J_base = J;
 J = 2 * J_base;
 [i_ss_J2, omega_ss_J2] = computeDCMotorSteadyState(V0, R, B, Kt, Ke, TL);
@@ -217,24 +203,24 @@ end %[output:group:2b4269ee]
 fprintf('Chapter 2 complete. Proceed to Chapter 3 for Bode plot and loop shaping.\n'); %[output:4c9d5189]
 %%
 %[text] ## 3. 制御系設計（ボード線図とループ整形）
-%[text] 本章では、第 1 章の結合モデルを 伝達関数 として整理し、MATLAB の ボード線図（bode / margin） で周波数応答を直感的に理解します。制御器設計の基本手法として、 一巡伝達関数 $L(s) = C(s)G(s)$ のループ整形 により、ゲイン交差周波数・位相余裕・帯域などの目標を満たすよう $C(s)$ を決めます。
+%[text] 本章では，第 1 章の結合モデルを 伝達関数 として整理し，MATLAB の ボード線図（bode / margin） で周波数応答を直感的に理解します。制御器設計の基本手法として， 一巡伝達関数 $L(s) = C(s)G(s)$ のループ整形 により，ゲイン交差周波数・位相余裕・帯域などの目標を満たすよう $C(s)$ を決めます。
 %[text] ![](text:image:332b)
-%[text] 図に示すとおり、$C(s)$ は 制御器（本章では速度 PI）、$G(s)$ は プラント（3.1 節で求める $V \\to \\omega$）です。開ループ（一巡）経路 $C(s)G(s)$ が 一巡伝達関数 $L(s)$ に対応します。
+%[text] 図に示すとおり，$C(s)$ は 制御器（本章では速度 PI），$G(s)$ は プラント（3.1 節で求める $V \\to \\omega$）です。開ループ（一巡）経路 $C(s)G(s)$ が 一巡伝達関数 $L(s)$ に対応します。
 %[text] 学習の流れは次のとおりです。
-%[text] - プラント $G(s)$ のボード線図を描き、$V \\to \\omega$ が 二次系 であることを確認します。
-%[text] - **速度ループのみ**（$V$ 直接）で $K\_{p,s}$・$K\_{i,s}$ を **各自調整** し、3.2 節の目標にどこまで近づけるか試します（応答を速くしようとすると PM 不足・オーバーシュート増加などの **限界** に当たりやすい）。
-%[text] - 続いて **電流内側ループ付きカスケード** で内側・外側ゲインを順に調整し、同じ目標表に対して 3.3 より設計余裕が得られるかを比較します。
-%[text] - 最後に両構成のボード線図・`margin`・Simulink 波形を照合し、「電流制御を入れた方がよい」理由を自分の言葉で整理します。 \
-%[text] なお、各段階で Simulink シミュレーションとボード線図の結果を照合します。
+%[text] - プラント $G(s)$ のボード線図を描き，$V \\to \\omega$ が 二次系 であることを確認します。
+%[text] - **速度ループのみ**（$V$ 直接）で $K\_{p,s}$・$K\_{i,s}$ を **各自調整** し，3.2 節の目標にどこまで近づけるか試します（応答を速くしようとすると PM 不足・オーバーシュート増加などの **限界** に当たりやすい）。
+%[text] - 続いて **電流内側ループ付きカスケード** で内側・外側ゲインを順に調整し，同じ目標表に対して 3.3 より設計余裕が得られるかを比較します。
+%[text] - 最後に両構成のボード線図・`margin`・Simulink 波形を照合し，「電流制御を入れた方がよい」理由を自分の言葉で整理します。 \
+%[text] なお，各段階で Simulink シミュレーションとボード線図の結果を照合します。
 %%
 %[text] ### 3.1 プラントの伝達関数とボード線図
-%[text] 第 1 章の結合モデルを ブロック線図 から整理し、$V$ から $\\omega$ までの伝達関数 $G(s)$ を求めます。ラプラス変換の長い式変形は省略し、ブロックの直列とフィードバックから読み取ります。
+%[text] 第 1 章の結合モデルを ブロック線図 から整理し，$V$ から $\\omega$ までの伝達関数 $G(s)$ を求めます。ラプラス変換の長い式変形は省略し，ブロックの直列とフィードバックから読み取ります。
 %[text] ブロック線図の整理
-%[text] 電気側：$V$ から $i$ までの経路は $G\_i(s) = \\frac{1}{L s + R}$ に、角速度 $\\omega$ による逆起電力 $K\_e \\omega$ が 負帰還 として作用します。機械側：$i$ から $\\omega$ まで $G\_\\omega(s) = \\frac{K\_t}{J s + B}$（$T\_L$ は外乱として省略可能）。$V$ から $\\omega$ への閉ループ相当の伝達関数は
+%[text] 電気側：$V$ から $i$ までの経路は $G\_i(s) = \\frac{1}{L s + R}$ に，角速度 $\\omega$ による逆起電力 $K\_e \\omega$ が 負帰還 として作用します。機械側：$i$ から $\\omega$ まで $G\_\\omega(s) = \\frac{K\_t}{J s + B}$（$T\_L$ は外乱として省略可能）。$V$ から $\\omega$ への閉ループ相当の伝達関数は
 %[text] $G(s)=\\frac{\\Omega (s)}{V(s)}=\\frac{K\_t }{(Js+B)(Ls+R)+K\_e K\_t }${"editStyle":"visual"}
 %[text] 分母は 2 次式 なので $G(s)$ は 2 次プラント です。定常ゲイン $G(0) = K\_t / (B R + K\_e K\_t)$ は 2.1 節の $\\omega\_{ss}/V\_0$（$T\_L=0$）と一致します。
 %[text] ![](text:image:66b3)
-%[text] MATLABでは、伝達関数を分母分子の多項式として定義することができます。下のコードで $G(s)$ を `tf` オブジェクトとして作成することで、sの多項式で置くことができます。このオブジェクトから `bode` と `margin` のコマンドによってボード線図が描けます。まずはプラント $G(s)$ を描画してみましょう。低周波ゲイン（定常ゲイン）、折れ点（$\\tau\_{elec}$, $\\tau\_{mech}$ 付近）、高周波での減衰（$-40$ dB/dec 付近）を確認してください。
+%[text] MATLABでは，伝達関数を分母分子の多項式として定義することができます。下のコードで $G(s)$ を `tf` オブジェクトとして作成することで，sの多項式で置くことができます。このオブジェクトから `bode` と `margin` のコマンドによってボード線図が描けます。まずはプラント $G(s)$ を描画してみましょう。低周波ゲイン（定常ゲイン），折れ点（$\\tau\_{elec}$, $\\tau\_{mech}$ 付近），高周波での減衰（$-40$ dB/dec 付近）を確認してください。
 numG = Kt;
 denG = conv([J, B], [L, R]);
 denG(end) = denG(end) + Ke * Kt;
@@ -246,12 +232,12 @@ plotBodePlant(G, 'Plant Bode diagram', 'Plant G(s): V to omega'); %[output:424c8
 fprintf('Plant only (no controller): GM=%g dB, PM=%g deg, wcg=%g rad/s\n', 20*log10(gm), pm, wcg); %[output:749fee4e]
 %%
 %[text] ### 3.2 ループ整形の基礎（一巡伝達関数）
-%[text] 単純なフィードバック制御系では、制御器 $C(s)$ とプラント $G(s)$ の 一巡伝達関数 $L(s) = C(s)G(s)$ の形状を整える ループ整形 が基本です。整える指標には次の指標がよく用いられます。
-%[text] - クロスオーバー周波数 $\\omega\_c$（$|L(j\\omega\_c)|=1$）：一巡伝達関数のゲインが 1 倍、すなわち 0 dB となる周波数。応答の速さの目安となります。
-%[text] - 位相余裕 PM（$\\angle L(j\\omega\_c)$ と $-180\\degree $ の差）：クロスオーバー周波数における位相。オーバーシュート・安定性の余裕の目安になります。一般に PM $\\ge 45\\degree $ 程度を目標にすることが多いです。クロスオーバー周波数をギリギリまであげる用途では、30°程度までは許容することもあります。
-%[text] - ゲイン余裕GM：一巡伝達関数の位相が-180°となるときのゲイン。この時点で通常は 0 dBを下回っていることが多く、位相余裕と比べるとあまり気にされません。 \
-%[text] PI 制御器 $C(s) = K\_p + \\frac{K\_i}{s}$ は、低周波ゲインを上げて定常偏差を小さくし、位相は $\\omega\_c$ 付近で遅れを生じます。`margin(L)` で GM・PM を読み、$K\_p$, $K\_i$ を調整する流れがループ整形の基本です。
-%[text] まずは **デモ** として、速度 PI の例 $K\_p=0.05$、$K\_i=0.2$ で $L(s)=C(s)G(s)$ のボード線図を確認します（本番のゲイン調整は 3.3 節）。下のコードでは $C(s)$（青）、$G(s)$（橙）、$L(s)$（黒）を重ね描画します。
+%[text] 単純なフィードバック制御系では，制御器 $C(s)$ とプラント $G(s)$ の 一巡伝達関数 $L(s) = C(s)G(s)$ の形状を整える ループ整形 が基本です。整える指標には次の指標がよく用いられます。
+%[text] - クロスオーバー周波数 $\\omega\_c$（$|L(j\\omega\_c)|=1$）：一巡伝達関数のゲインが 1 倍，すなわち 0 dB となる周波数。応答の速さの目安となります。
+%[text] - 位相余裕 PM（$\\angle L(j\\omega\_c)$ と $-180\\degree $ の差）：クロスオーバー周波数における位相。オーバーシュート・安定性の余裕の目安になります。一般に PM $\\ge 45\\degree $ 程度を目標にすることが多いです。クロスオーバー周波数をギリギリまであげる用途では，30°程度までは許容することもあります。
+%[text] - ゲイン余裕GM：一巡伝達関数の位相が-180°となるときのゲイン。この時点で通常は 0 dBを下回っていることが多く，位相余裕と比べるとあまり気にされません。 \
+%[text] PI 制御器 $C(s) = K\_p + \\frac{K\_i}{s}$ は，低周波ゲインを上げて定常偏差を小さくし，位相は $\\omega\_c$ 付近で遅れを生じます。`margin(L)` で GM・PM を読み，$K\_p$, $K\_i$ を調整する流れがループ整形の基本です。
+%[text] まずは **デモ** として，速度 PI の例 $K\_p=0.05$，$K\_i=0.2$ で $L(s)=C(s)G(s)$ のボード線図を確認します（本番のゲイン調整は 3.3 節）。下のコードでは $C(s)$（青），$G(s)$（橙），$L(s)$（黒）を重ね描画します。
 Kp_demo = 0.05;
 Ki_demo = 0.2;
 C_demo = tf([Kp_demo, Ki_demo], [1, 0]);
@@ -266,28 +252,28 @@ fprintf('Closed-loop step info (omega/V): rise time=%g s, overshoot=%g %%n', ...
     stepInfo.RiseTime, stepInfo.Overshoot); %[output:group:01795d52] %[output:00fc3370]
 %%
 %[text] ### 3.2.1 制御目標（暫定）
-%[text] 3\.3・3.4 節では、下表を **調整の目安** として使います。数値は教材用の暫定値です。$K\_p$・$K\_i$ を変えたら、毎回 `margin` とステップ応答（必要なら Simulink）で表の項目を確認してください。
+%[text] 3\.3・3.4 節では，下表を **調整の目安** として使います。数値は教材用の暫定値です。$K\_p$・$K\_i$ を変えたら，毎回 `margin` とステップ応答（必要なら Simulink）で表の項目を確認してください。
 %[text:table]
 %[text] | 評価項目 | 目標値（暫定） | 主な確認方法 |
 %[text] | --- | --- | --- |
-%[text] | 定常追従 | $\\omega/\\omega\_{ref} \\to 1$（定常偏差 $\\approx 0$） | `step` 応答の定常値、Simulink の $\\omega$ |
+%[text] | 定常追従 | $\\omega/\\omega\_{ref} \\to 1$（定常偏差 $\\approx 0$） | `step` 応答の定常値，Simulink の $\\omega$ |
 %[text] | 位相余裕 PM | $\\ge 45\\degree $（努力目標）。$\\ge 30\\degree $ までなら許容 | `margin(L)`（一巡 $L$ は調整対象ループ） |
 %[text] | オーバーシュート | $\\le 20\\%$ 程度 | `stepinfo` の Overshoot |
 %[text] | 立ち上がり時間 | $T\_{sim}=5$ s 内に定常付近（目安：$\\le 2$ s 前後） | `stepinfo` の RiseTime / SettlingTime |
-%[text] | 安定性 | 発散・持続振動なし | ステップ波形、`margin` で PM $\> 0$ |
+%[text] | 安定性 | 発散・持続振動なし | ステップ波形，`margin` で PM $\> 0$ |
 %[text:table]
 %[text] **3.3（速度ループのみ）** — 調整するのは `Kp_speed`・`Ki_speed` のみ。一巡は $L = C\_{speed}(s)\\,G(s)$。
-%[text] **3.4（カスケード）** — (1) 内側 `Kp_curr`・`Ki_curr` で $L\_i = C\_{curr} G\_i$ を先に整形（PM・帯域を確保）、(2) その後 外側 `Kp_sp_c`・`Ki_sp_c` で $L\_o = C\_{speed} G\_{outer}$ を整形。内側が速いほど外側から見たプラントが $G\_\\omega(s)$ に近づきます。
-%[text] **調整の進め方（共通）** — $K\_i$ で定常偏差を抑え、$K\_p$ で応答速度・PM のバランスを取る。目標を満たしつつ $\\omega\_c$ を上げていき、**PM 低下・オーバーシュート増・発振** が出たら限界とみなして記録する（3.5 節で 3.3 と比較）。
+%[text] **3.4（カスケード）** — (1) 内側 `Kp_curr`・`Ki_curr` で $L\_i = C\_{curr} G\_i$ を先に整形（PM・帯域を確保），(2) その後 外側 `Kp_sp_c`・`Ki_sp_c` で $L\_o = C\_{speed} G\_{outer}$ を整形。内側が速いほど外側から見たプラントが $G\_\\omega(s)$ に近づきます。
+%[text] **調整の進め方（共通）** — $K\_i$ で定常偏差を抑え，$K\_p$ で応答速度・PM のバランスを取る。目標を満たしつつ $\\omega\_c$ を上げていき，**PM 低下・オーバーシュート増・発振** が出たら限界とみなして記録する（3.5 節で 3.3 と比較）。
 %%
 %[text] ### 3.3 速度ループのみ：ゲイン調整（$V$ 直接）
-%[text] 2\.2 節のプラントに **速度 PI 1 重** を載せ、制御器出力 $V$ を直接印加する構成です。3.2.1 節の目標表を手がかりに、**`Kp_speed`****・****`Ki_speed`** **を各自で調整** してください。
-%[text] **この節で試してほしいこと** — 初期値から出発し、(1) 定常追従と PM を確保した状態を 1 つ記録する、(2) 立ち上がりを速くする方向に $K\_p$・$K\_i$ を **少しずつ上げ**、3.2.1 節のどの項目で先に限界（PM 不足・オーバーシュート超過・振動など）に達するかを観察する。おおむねの体感として、**二次プラント** $G(s)$ **に対して応答を速くしようとするほど PM を確保しにくい** ことがボード線図でも波形でも見えてきます。
-%[text] 調整結果（採用ゲイン・`margin`・`stepinfo`・メモ）は 3.5 節の比較に使います。限界に達したら無理にゲインを上げず、3.4 節のカスケードへ進んでください。
+%[text] 2\.2 節のプラントに **速度 PI 1 重** を載せ，制御器出力 $V$ を直接印加する構成です。3.2.1 節の目標表を手がかりに，**`Kp_speed`****\*\*\*\*・**`Ki_speed` **を各自で調整** してください。
+%[text] **この節で試してほしいこと** — 初期値から出発し，(1) 定常追従と PM を確保した状態を 1 つ記録する，(2) 立ち上がりを速くする方向に $K\_p$・$K\_i$ を \*\*少しずつ上げ，\*\*3.2.1 節のどの項目で先に限界（PM 不足・オーバーシュート超過・振動など）に達するかを観察する。おおむねの体感として，**二次プラント** $G(s)$ **に対して応答を速くしようとするほど PM を確保しにくい** ことがボード線図でも波形でも見えてきます。
+%[text] 調整結果（採用ゲイン・`margin`・`stepinfo`・メモ）は 3.5 節の比較に使います。限界に達したら無理にゲインを上げず，3.4 節のカスケードへ進んでください。
 %[text] #### Simulink モデル `DCMotor_Speed.slx` の作成
-%[text] **2.2 節 Integrator 方式**の `DCMotor_Model.slx` を複製して拡張します（2.3 節 Simscape 方式ではありません）。開ループの $V\_0$ Step を、$\\omega\_{ref}$ → 偏差 → **PID Controller（PI）** → $V$ → プラント → $\\omega$ フィードバック の閉ループに置き換えます。
+%[text] **2.2 節 Integrator 方式**の `DCMotor_Model.slx` を複製して拡張します（2.3 節 Simscape 方式ではありません）。開ループの $V\_0$ Step を，$\\omega\_{ref}$ → 偏差 → **PID Controller（PI）** → $V$ → プラント → $\\omega$ フィードバック の閉ループに置き換えます。
 %[text] #### 手順 1：モデルを複製して保存する
-%[text] 1. `DCMotor_Model.slx` を開き、**名前を付けて保存** して `DCMotor_Speed.slx` を作成する
+%[text] 1. `DCMotor_Model.slx` を開き，**名前を付けて保存** して `DCMotor_Speed.slx` を作成する
 %[text] 2. 保存先は `DCMotor_Modeling_Lecture.m` と 同じフォルダ
 %[text] 3. 1.9 節のパラメータ（`R`, `L`, `Kt`, `Ke`, `J`, `B`, `TL`, `Tsim` など）がワークスペースに存在することを確認する \
 %[text] #### 手順 2：開ループ入力を取り外す
@@ -297,29 +283,29 @@ fprintf('Closed-loop step info (omega/V): rise time=%g s, overshoot=%g %%n', ...
 %[text] **追加するブロック（Simulink 標準）**
 %[text] - **Step**（角速度指令 $\\omega\_{ref}$）
 %[text] - **Sum**（偏差 $e = \\omega\_{ref} - \\omega$。**List of signs** = `+-`）
-%[text] - **PID Controller**（速度 PI。**Controller type** = `PI`、$D$ 項 = `0`）
+%[text] - **PID Controller**（速度 PI。**Controller type** = `PI，`$D$ 項 = `0`）
 %[text] - **To Workspace**（`omega_ref_sim` 用。照合に推奨）× 1 \
-%[text] 2\.2 節の Integrator プラントに PID Controller を接続する構成では、代数ループ警告は通常出ません（Simscape 方式とは異なります）。
+%[text] 2\.2 節の Integrator プラントに PID Controller を接続する構成では，代数ループ警告は通常出ません（Simscape 方式とは異なります）。
 %[text] #### 手順 4：制御ループを配線する
 %[text] 1. **指令** — Step 出力 → 偏差 Sum の **＋** 入力（$\\omega\_{ref}$）
 %[text] 2. **フィードバック** — $\\omega$ 用 Integrator の出力 → 偏差 Sum の **−** 入力
 %[text] 3. **制御器** — 偏差 Sum 出力（$e$）→ PID Controller 入力
 %[text] 4. **プラントへの印加** — PID Controller 出力（$V$）→ 電流経路 Sum の $+V$ 入力（2.2 節の Step が接続されていた位置）
-%[text] 5. **プラント本体** — 2.2 節の電流・角速度経路、$K\_e$ 負帰還、$T\_L$ 入力は 変更しない \
+%[text] 5. **プラント本体** — 2.2 節の電流・角速度経路，$K\_e$ 負帰還，$T\_L$ 入力は 変更しない \
 %[text] #### 手順 5：パラメータを設定する
-%[text] **速度 PI（PID Controller）** — **Proportional** = `Kp_speed`、**Integral** = `Ki_speed`（下の第 1 部コードで定義。**ここを書き換えて調整**）。**Derivative** = `0`。**Controller type** = `PI`。
-%[text] **角速度指令（Step）** — Step time = `0`、Initial value = `0`、Final value = `omega_ss`（第 2 部のコードが実行前に数値を書き込む）
+%[text] **速度 PI（PID Controller）** — **Proportional** = `Kp_speed，`**Integral** = `Ki_speed`（下の第 1 部コードで定義。**ここを書き換えて調整**）。**Derivative** = `0`。**Controller type** = `PI`。
+%[text] **角速度指令（Step）** — Step time = `0，`Initial value = `0，`Final value = `omega_ss`（第 2 部のコードが実行前に数値を書き込む）
 %[text] #### 手順 6：出力とシミュレーション設定
 %[text] 1. 2.2 節と同様に `v_sim`・`i_sim`・`omega_sim` を To Workspace へ接続する
 %[text] 2. $\\omega\_{ref}$ の Step 出力 → To Workspace（`omega_ref_sim`）を追加してもよい
 %[text] 3. PID Controller 出力 → To Workspace（`v_sim`）へ接続する（2.2 節では Step 出力を `v_sim` にしていた位置を置き換える）
-%[text] 4. Model Settings → Solver：Stop time = `Tsim`、Data Import/Export で Time にチェック（`tout`） \
+%[text] 4. Model Settings → Solver：Stop time = `Tsim，`Data Import/Export で Time にチェック（`tout`） \
 %[text] #### 手順 7：実行と照合
-%[text] 1. Simulink で Run し、エラーなく終了することを確認する
+%[text] 1. Simulink で Run し，エラーなく終了することを確認する
 %[text] 2. 下のコード（第 1 部）で $L(s)$ のボード線図・`margin`・`step(T_speed)` を計算する
-%[text] 3. 下のコード（第 2 部）で `simulateDCMotorModel` により Simulink を再実行し、$\\omega/\\omega\_{ss}$ と `step(T_speed)` を重ねて照合する \
+%[text] 3. 下のコード（第 2 部）で `simulateDCMotorModel` により Simulink を再実行し，$\\omega/\\omega\_{ss}$ と `step(T_speed)` を重ねて照合する \
 %[text] #### 第 1 部：ゲイン調整と伝達関数での確認（MATLAB）
-%[text] **`Kp_speed`****・****`Ki_speed`** **を編集** してから本セクションを実行します。ボード線図・`margin`・`step(T_speed)` で 3.2.1 節の表を都度確認し、Simulink（第 2 部）と照合できる状態にします。
+%[text] **`Kp_speed`****\*\*\*\*・**`Ki_speed` **を編集** してから本セクションを実行します。ボード線図・`margin`・`step(T_speed)` で 3.2.1 節の表を都度確認し，Simulink（第 2 部）と照合できる状態にします。
 %[text] 下の値は **調整開始用の初期値** です。コード内の `% --- 3.3 ...` 付近を編集してください。
 % --- 3.3 速度ループのみ：ここを編集して調整 ---
 Kp_speed = 0.08;
@@ -335,11 +321,11 @@ fprintf('Speed PI (V direct): Kp=%g, Ki=%g, PM=%g deg, wcp=%g rad/s\n', ... %[ou
 stepInfoS = stepinfo(T_speed);
 fprintf('  Step: overshoot=%g %%, rise=%g s, settling=%g s (see Table 3.2.1)\n', ... %[output:group:94984137] %[output:0829a8ca]
     stepInfoS.Overshoot, stepInfoS.RiseTime, stepInfoS.SettlingTime); %[output:group:94984137] %[output:0829a8ca]
-%[text] **ボード線図で見る点**（$C(s)$ 青、$G(s)$ 橙、$L(s)$ 黒）
-%[text] 1. $L(s)$ **の位相余裕 PM** — 3.2.1 節の目標（$\\ge 45\\degree $ 努力、$\\ge 30\\degree $ 許容）と照合。PM が小さいほどオーバーシュートが大きくなりやすい。
-%[text] 2. $L(s)$ **のゲイン交差** $\\omega\_c$ — 応答の速さの目安。$K\_p$・$K\_i$ を上げると $\\omega\_c$ は上がりやすいが PM は下がりやすい、という **トレードオフ** を確認する。
+%[text] **ボード線図で見る点**（$C(s)$ 青，$G(s)$ 橙，$L(s)$ 黒）
+%[text] 1. $L(s)$ **の位相余裕 PM** — 3.2.1 節の目標（$\\ge 45\\degree $ 努力，$\\ge 30\\degree $ 許容）と照合。PM が小さいほどオーバーシュートが大きくなりやすい。
+%[text] 2. $L(s)$ **のゲイン交差** $\\omega\_c$ — 応答の速さの目安。$K\_p$・$K\_i$ を上げると $\\omega\_c$ は上がりやすいが PM は下がりやすい，という **トレードオフ** を確認する。
 %[text] 3. $C(s)$ **の役割** — 低周波で $L$ を持ち上げ定常偏差を抑える（PI の積分）。$G(s)$ 単体（3.1 節）と比べ $L$ の形状がどう変わったかを見る。 \
-%[text] **ステップ応答** — 定常値 $\\approx 1$、オーバーシュート・立ち上がりが 3.2.1 節の暫定目標内か。限界に達したらゲインと `margin` の値をメモして 3.4 節へ。
+%[text] **ステップ応答** — 定常値 $\\approx 1$，オーバーシュート・立ち上がりが 3.2.1 節の暫定目標内か。限界に達したらゲインと `margin` の値をメモして 3.4 節へ。
 figure('Name', 'Speed control step response', 'Color', 'w'); %[output:3cb82a2f]
 step(T_speed, Tsim); %[output:3cb82a2f]
 grid on; %[output:3cb82a2f]
@@ -347,8 +333,8 @@ title(sprintf('Closed-loop speed control (V direct), PM=%.1f deg', pmS)); %[outp
 applyWhiteFigureStyle(gcf); %[output:3cb82a2f]
 %%
 %[text] #### 第 2 部：Simulink 実行と応答の重ね合わせ
-%[text] 第 1 部で確認した $T(s)$ を基準に、Integrator プラントの Simulink モデルが同じ応答を再現するかを検証します。手順 1〜6 で `DCMotor_Speed.slx` を作成済みであることを前提に実行します。
-%[text] **重ね合わせ図の見方** — 青：`step(T_speed)`（伝達関数）、赤破線：Simulink の $\\omega/\\omega\_{ss}$。**2 本がおおむね一致**すれば、配線・パラメータ・ゲイン設定が整合しています。ずれが大きい場合は、$\\omega\_{ref}$ Step が `V0` になっていないか、PID ゲイン、プラント Gain の変数参照を確認してください。
+%[text] 第 1 部で確認した $T(s)$ を基準に，Integrator プラントの Simulink モデルが同じ応答を再現するかを検証します。手順 1〜6 で `DCMotor_Speed.slx` を作成済みであることを前提に実行します。
+%[text] **重ね合わせ図の見方** — 青：`step(T_speed)`（伝達関数），赤破線：Simulink の $\\omega/\\omega\_{ss}$。**2 本がおおむね一致**すれば，配線・パラメータ・ゲイン設定が整合しています。ずれが大きい場合は，$\\omega\_{ref}$ Step が `V0` になっていないか，PID ゲイン，プラント Gain の変数参照を確認してください。
 [~, omega_ss] = computeDCMotorSteadyState(V0, R, B, Kt, Ke, TL);
 modelNameSpeed = 'DCMotor_Speed';
 prepareDCMotorSpeedModel(modelNameSpeed, Kp_speed, Ki_speed, omega_ss);
@@ -385,14 +371,14 @@ if okSlx %[output:group:128bbf27]
 end %[output:group:128bbf27]
 %%
 %[text] ### 3.4 カスケード構成：内側・外側のゲイン調整
-%[text] 3\.3 節で **速度ループのみ** の限界（PM 不足・オーバーシュート・振動など）に触れたら、速度ループの内側に **電流 PI** を追加するカスケード構成を試します。
-%[text] **設計の順序** — (1) **内側** $L\_i = C\_{curr}(s) G\_i(s)$ の `Kp_curr`・`Ki_curr` を調整し、電流ループを 3.2.1 節の目標どおり十分速く・安定にする。(2) 内側閉ループ $T\_i$ から外側等価 $G\_{outer} \\approx G\_\\omega T\_i$ を求め、**外側** `Kp_sp_c`・`Ki_sp_c` で $L\_o = C\_{speed} G\_{outer}$ を調整する。内側が整っていれば外側から見たプラントは **ほぼ 1 次** に近く、3.3 より同じ PM で速い応答、または同程度の速さで PM に余裕、が取りやすくなります。
-%[text] 3\.2.1 節の表を目安に **各自でゲインを調整** し、3.3 のベスト結果と並べて 3.5 節で比較してください。
+%[text] 3\.3 節で **速度ループのみ** の限界（PM 不足・オーバーシュート・振動など）に触れたら，速度ループの内側に **電流 PI** を追加するカスケード構成を試します。
+%[text] **設計の順序** — (1) **内側** $L\_i = C\_{curr}(s) G\_i(s)$ の `Kp_curr`・`Ki_curr` を調整し，電流ループを 3.2.1 節の目標どおり十分速く・安定にする。(2) 内側閉ループ $T\_i$ から外側等価 $G\_{outer} \\approx G\_\\omega T\_i$ を求め，**外側** `Kp_sp_c`・`Ki_sp_c` で $L\_o = C\_{speed} G\_{outer}$ を調整する。内側が整っていれば外側から見たプラントは **ほぼ 1 次** に近く，3.3 より同じ PM で速い応答，または同程度の速さで PM に余裕，が取りやすくなります。
+%[text] 3\.2.1 節の表を目安に **各自でゲインを調整** し，3.3 のベスト結果と並べて 3.5 節で比較してください。
 %[text] ![](text:image:c3c4)
-%[text] 外側（$C\_{\\mathrm{speed}}$）→ $i\_{\\mathrm{ref}}$、内側（$C\_{\\mathrm{curr}}$）→ $V$。逆起電力 $K\_e\\omega$ は外乱、$i \\to \\omega$ は $G\_\\omega(s)$。
-%[text] Simulink モデル `DCMotor_Cascade.slx` — `DCMotor_Speed.slx` を複製し、速度 PI 出力を $i\_{ref}$ に接続、内側に電流 PI を追加して $V$ を生成する（詳細手順は今後補足予定。伝達関数での調整は下記コードで先行可能）。
+%[text] 外側（$C\_{\\mathrm{speed}}$）→ $i\_{\\mathrm{ref}}$，内側（$C\_{\\mathrm{curr}}$）→ $V$。逆起電力 $K\_e\\omega$ は外乱，$i \\to \\omega$ は $G\_\\omega(s)$。
+%[text] Simulink モデル `DCMotor_Cascade.slx` — `DCMotor_Speed.slx` を複製し，速度 PI 出力を $i\_{ref}$ に接続，内側に電流 PI を追加して $V$ を生成する（詳細手順は今後補足予定。伝達関数での調整は下記コードで先行可能）。
 %[text] #### 第 1 部：内側電流ループのゲイン調整（MATLAB）
-%[text] **`Kp_curr`****・****`Ki_curr`** **を編集** してから実行。$L\_i$ の PM・$\\omega\_c$ が 3.2.1 節を満たすまで調整し、満たしたら外側へ進みます。
+%[text] **`Kp_curr`****\*\*\*\*・**`Ki_curr` **を編集** してから実行。$L\_i$ の PM・$\\omega\_c$ が 3.2.1 節を満たすまで調整し，満たしたら外側へ進みます。
 % --- 3.4 内側電流ループ：ここを編集して調整 ---
 G_i = tf(1, [L, R]);
 G_omega = tf(Kt, [J, B]);
@@ -409,7 +395,7 @@ fprintf('Inner loop: Kp=%g, Ki=%g, PM=%g deg, wcp=%g rad/s\n', Kp_curr, Ki_curr,
 fprintf('  Inner closed-loop step: overshoot=%g %%, rise=%g s\n', stepInfoI.Overshoot, stepInfoI.RiseTime); %[output:133e4aa2]
 %%
 %[text] #### 第 2 部：外側速度ループのゲイン調整（MATLAB）
-%[text] 内側が整ったら **`Kp_sp_c`****・****`Ki_sp_c`** **を編集** して外側 $L\_o$ を調整します。3.3 節の PM・立ち上がり・オーバーシュートと比較してください。
+%[text] 内側が整ったら **`Kp_sp_c`****\*\*\*\*・**`Ki_sp_c` **を編集** して外側 $L\_o$ を調整します。3.3 節の PM・立ち上がり・オーバーシュートと比較してください。
 % --- 3.4 外側速度ループ：ここを編集して調整 ---
 G_outer = G_omega * T_i;
 Kp_sp_c = 0.3;
@@ -433,13 +419,13 @@ title('Closed-loop step (cascade design, transfer-function model)'); %[output:6e
 applyWhiteFigureStyle(gcf); %[output:6e3a6725]
 %%
 %[text] ### 3.5 設計比較と振り返り
-%[text] 3\.3（速度ループのみ）と 3.4（カスケード）で **各自が調整したゲイン** を並べて比較します。伝達関数の `margin`・`stepinfo` に加え、可能なら Simulink（`DCMotor_Speed.slx`・`DCMotor_Cascade.slx`）でも同じゲインで波形を確認してください。
+%[text] 3\.3（速度ループのみ）と 3.4（カスケード）で **各自が調整したゲイン** を並べて比較します。伝達関数の `margin`・`stepinfo` に加え，可能なら Simulink（`DCMotor_Speed.slx`・`DCMotor_Cascade.slx`）でも同じゲインで波形を確認してください。
 %[text] **振り返りのたたき台**
-%[text] - 3.3 で速い応答を目指したとき、3.2.1 節の **どの項目が先に限界** になったか（PM・オーバーシュートなど）。
-%[text] - 3.4 では **内側を先に整える** ことで、外側 $L\_o$ の PM 確保や $\\omega\_c$ の向上にどう効いたか。
-%[text] - 同じ暫定目標表に対し、**電流制御を含めた方が設計しやすかった理由** を自分の言葉で述べる（二次 $G(s)$ 直接操作 vs 等価 1 次 $G\_{outer}$ など）。 \
+%[text] - 3.3 で速い応答を目指したとき，3.2.1 節の **どの項目が先に限界** になったか（PM・オーバーシュートなど）。
+%[text] - 3.4 では **内側を先に整える** ことで，外側 $L\_o$ の PM 確保や $\\omega\_c$ の向上にどう効いたか。
+%[text] - 同じ暫定目標表に対し，**電流制御を含めた方が設計しやすかった理由** を自分の言葉で述べる（二次 $G(s)$ 直接操作 vs 等価 1 次 $G\_{outer}$ など）。 \
 %[text] 事後課題（制御設計レポート）
-%[text] 採用ゲイン一覧と 3.2.1 節の表との対応。3.3・3.4 のボード線図・`margin`・ステップ応答・Simulink 波形の比較。カスケードの利点の考察。発展：実機パラメータ、$T\_L \\ne 0$ 時の定常偏差。
+%[text] 採用ゲイン一覧と 3.2.1 節の表との対応。3.3・3.4 のボード線図・`margin`・ステップ応答・Simulink 波形の比較。カスケードの利点の考察。発展：実機パラメータ，$T\_L \\ne 0$ 時の定常偏差。
 %[text] 下のコードは **現在ワークスペースのゲイン**（3.3・3.4 第 1・2 部で定義した値）による閉ループステップを 1 枚に重ねた比較例です。Simulink 照合後も同様に重ねてください。
 figure('Name', 'Design comparison', 'Color', 'w'); %[output:5e042ea1]
 step(T_speed, 'b-'); %[output:5e042ea1]
